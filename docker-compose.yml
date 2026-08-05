@@ -1,8 +1,6 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     container_name: movie-notifier-app
     restart: unless-stopped
     env_file:
@@ -32,6 +30,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  migrate:
+    image: migrate/migrate
+    profiles:
+      - tools
+    volumes:
+      - ./migrations:/migrations:ro
+    entrypoint:
+      [
+        "migrate",
+        "-path", "/migrations",
+        "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:
