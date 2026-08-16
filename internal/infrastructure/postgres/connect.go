@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func ConnectDb(ctx context.Context, url string) (*pgxpool.Pool, error) {
+func connect(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	db, err := pgxpool.New(ctx, url)
 	if err != nil {
 		log.Fatalf("failed to create database: %v", err)

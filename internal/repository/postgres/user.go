@@ -1,73 +1,72 @@
 package postgres
 
 import (
+	"context"
+	"fmt"
 	"kino-notifier/internal/domain"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type userRow struct {
-	ID uuid.UUID `db:"id"`
-
-	TelegramUserID int64 `db:"telegram_user_id"`
-	TelegramChatID int64 `db:"telegram_chat_id"`
-
-	Username     *string `db:"username"`
-	FirstName    *string `db:"first_name"`
-	LastName     *string `db:"last_name"`
-	LanguageCode *string `db:"language_code"`
-
-	IsBot    bool `db:"is_bot"`
-	IsActive bool `db:"is_active"`
-
-	// Когда пользователь впервые или повторно активировал бота
-	StartedAt time.Time `db:"started_at"`
-	// Время последнего сообщения или команды
-	LastInteractionAt time.Time `db:"last_interaction_at"`
-	// Когда пользователь отключил уведомления
-	DeactivatedAt *time.Time `db:"deactivated_at"`
-
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+type UserRepository struct {
+	pool *pgxpool.Pool
 }
 
-func userToDomain(user userRow) domain.User {
-	return domain.User{
-		ID: user.ID,
-
-		TelegramUserID: user.TelegramUserID,
-		TelegramChatID: user.TelegramChatID,
-
-		Username:     user.Username,
-		FirstName:    user.FirstName,
-		LastName:     user.LastName,
-		LanguageCode: user.LanguageCode,
-
-		IsActive: user.IsActive,
-
-		StartedAt:         user.StartedAt,
-		LastInteractionAt: user.LastInteractionAt,
-		DeactivatedAt:     user.DeactivatedAt,
+func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
+	return &UserRepository{
+		pool: pool,
 	}
 }
 
-func domainToUser(user domain.User) userRow {
-	return userRow{
-		ID: user.ID,
+func (r *UserRepository) Create(
+	ctx context.Context,
+	user domain.User,
+) error {
+	const query = `
+		INSERT INTO users (
+			telegram_user_id,
+			telegram_chat_id,
+			username,
+			first_name,
+			last_name,
+			language_code,
+			is_active,
+			started_at,
+			last_interaction_at
+		)
+		VALUES (
+			$1, $2, $3, $4, $5, $6,
+			TRUE,
+			NOW(),
+			NOW()
+		)
+		ON CONFLICT (telegram_user_id)
+		DO UPDATE SET
+			telegram_chat_id = EXCLUDED.telegram_chat_id,
+			username = EXCLUDED.username,
+			first_name = EXCLUDED.first_name,
+			last_name = EXCLUDED.last_name,
+			language_code = EXCLUDED.language_code,
+			is_active = TRUE,
+			started_at = NOW(),
+			last_interaction_at = NOW(),
+			deactivated_at = NULL,
+			updated_at = NOW()
+	`
 
-		TelegramUserID: user.TelegramUserID,
-		TelegramChatID: user.TelegramChatID,
-
-		Username:     user.Username,
-		FirstName:    user.FirstName,
-		LastName:     user.LastName,
-		LanguageCode: user.LanguageCode,
-
-		IsActive: user.IsActive,
-
-		StartedAt:         user.StartedAt,
-		LastInteractionAt: user.LastInteractionAt,
-		DeactivatedAt:     user.DeactivatedAt,
+	_, err := r.pool.Exec(
+		ctx,
+		query,
+		user.TelegramUserID,
+		user.TelegramChatID,
+		user.Username,
+		user.FirstName,
+		user.LastName,
+		user.LanguageCode,
+	)
+	if err != nil {
+		return fmt.Errorf("error upsert user: %w", err)
 	}
+
+	return nil
 }

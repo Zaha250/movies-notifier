@@ -26,7 +26,7 @@ func main() {
 	)
 	defer stop()
 
-	db, err := postgres.ConnectDb(ctx, cfg.PostgresUrl)
+	db, err := postgres.New(ctx, cfg.PostgresUrl)
 	if err != nil {
 		log.Fatalf("failed to connect database: %v", err)
 	}
