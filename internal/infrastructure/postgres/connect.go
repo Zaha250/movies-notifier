@@ -2,7 +2,7 @@ package postgres
 
 import (
 	"context"
-	"log"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -10,11 +10,11 @@ import (
 func connect(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	db, err := pgxpool.New(ctx, url)
 	if err != nil {
-		log.Fatalf("failed to create database: %v", err)
+		return nil, fmt.Errorf("failed to create database: %w", err)
 	}
 
 	if err := db.Ping(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	return db, err
