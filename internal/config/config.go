@@ -2,7 +2,7 @@ package config
 
 type AppConfig struct {
 	Port        int    `env:"PORT" envDefault:"8080"`
-	PostgresUrl string `env:"POSTGRES_URL"`
+	PostgresURL string `env:"POSTGRES_URL"`
 	Telegram    TelegramConfig
 }
 

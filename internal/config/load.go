@@ -16,8 +16,8 @@ func Load() (*AppConfig, error) {
 		return nil, fmt.Errorf("ошибка парсинга ENV: %w", err)
 	}
 
-	if cfg.PostgresUrl == "" {
-		return nil, fmt.Errorf("PostgresUrl is required")
+	if cfg.PostgresURL == "" {
+		return nil, fmt.Errorf("POSTGRES_URL обязателен")
 	}
 
 	/*yamlFile, err := os.ReadFile("configs/config.yml")

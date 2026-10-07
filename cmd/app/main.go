@@ -10,9 +10,12 @@ import (
 	"syscall"
 	"time"
 
+	userapp "kino-notifier/internal/application/user"
 	"kino-notifier/internal/config"
 	"kino-notifier/internal/infrastructure/httpserver"
-	"kino-notifier/internal/infrastructure/postgres"
+	"kino-notifier/internal/infrastructure/postgres/connection"
+	postgresuser "kino-notifier/internal/infrastructure/postgres/user"
+	"kino-notifier/internal/infrastructure/telegram"
 )
 
 func main() {
@@ -38,14 +41,26 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	}
 
 	startupCtx, cancelStartup := context.WithTimeout(ctx, 10*time.Second)
-	db, err := postgres.New(startupCtx, cfg.PostgresUrl)
+	database, err := connection.Open(startupCtx, cfg.PostgresURL)
 	cancelStartup()
 	if err != nil {
 		return fmt.Errorf("ошибка подключения к PostgreSQL: %w", err)
 	}
-	defer db.Close()
+	defer database.Close()
 
-	healthHandler := httpserver.NewHealthHandler(db.Pool)
+	userRepository := postgresuser.NewRepository(database.Pool)
+	registerUser := userapp.NewRegisterUser(userRepository)
+	telegramClient, err := telegram.NewClient(ctx, cfg.Telegram.Token, logger)
+	if err != nil {
+		return fmt.Errorf("инициализация Telegram-клиента: %w", err)
+	}
+	notifier := telegram.NewNotifier(telegramClient)
+	telegramBot, err := telegram.NewBot(ctx, telegramClient, registerUser, notifier, logger)
+	if err != nil {
+		return fmt.Errorf("инициализация Telegram-бота: %w", err)
+	}
+
+	healthHandler := httpserver.NewHealthHandler(database.Pool)
 	router := httpserver.NewRouter(healthHandler)
 
 	server, err := httpserver.New(cfg.Port, router)
@@ -53,13 +68,22 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return fmt.Errorf("создание HTTP-сервера: %w", err)
 	}
 
+	runtimeCtx, cancelRuntime := context.WithCancel(ctx)
+	defer cancelRuntime()
+
 	serverErrors := make(chan error, 1)
+	botDone := make(chan struct{})
 
 	logger.Info("запуск HTTP-сервера", "port", cfg.Port)
 
 	go func() {
 		serverErrors <- server.Run()
 	}()
+	go func() {
+		defer close(botDone)
+		telegramBot.Run(runtimeCtx)
+	}()
+	logger.Info("запуск Telegram-бота", "mode", "long_polling")
 
 	var serverErr error
 	serverStopped := false
@@ -67,9 +91,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	select {
 	case serverErr = <-serverErrors:
 		serverStopped = true
+	case <-botDone:
+		if ctx.Err() == nil {
+			serverErr = fmt.Errorf("Telegram-бот неожиданно завершил работу")
+		}
 	case <-ctx.Done():
 		logger.Info("получен сигнал остановки")
 	}
+
+	cancelRuntime()
 
 	shutdownCtx, cancelShutdown := context.WithTimeout(
 		context.Background(),
@@ -80,7 +110,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	shutdownErr := server.Shutdown(shutdownCtx)
 
 	if !serverStopped {
-		serverErr = <-serverErrors
+		serverErr = errors.Join(serverErr, <-serverErrors)
+	}
+	select {
+	case <-botDone:
+	case <-shutdownCtx.Done():
+		shutdownErr = errors.Join(shutdownErr,
+			fmt.Errorf("ожидание остановки Telegram-бота: %w", shutdownCtx.Err()),
+		)
 	}
 
 	return errors.Join(serverErr, shutdownErr)
