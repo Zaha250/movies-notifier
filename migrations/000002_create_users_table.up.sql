@@ -13,9 +13,7 @@ CREATE TABLE users
     is_bot              BOOLEAN     NOT NULL DEFAULT FALSE,
     is_active           BOOLEAN     NOT NULL DEFAULT TRUE,
 
-    started_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_interaction_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    deactivated_at      TIMESTAMPTZ,
 
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),

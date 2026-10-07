@@ -16,12 +16,8 @@ type User struct {
 	LanguageCode   *string
 	IsBot          bool
 	IsActive       bool
-	// Когда пользователь впервые или повторно активировал бота
-	StartedAt time.Time
 	// Время последнего сообщения или команды
 	LastInteractionAt time.Time
-	// Когда пользователь отключил уведомления
-	DeactivatedAt *time.Time
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }

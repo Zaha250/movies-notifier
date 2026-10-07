@@ -31,7 +31,6 @@ func (r *UserRepository) Create(
 			last_name,
 			language_code,
 			is_active,
-			started_at,
 			last_interaction_at
 		)
 		VALUES (
@@ -48,9 +47,7 @@ func (r *UserRepository) Create(
 			last_name = EXCLUDED.last_name,
 			language_code = EXCLUDED.language_code,
 			is_active = TRUE,
-			started_at = NOW(),
 			last_interaction_at = NOW(),
-			deactivated_at = NULL,
 			updated_at = NOW()
 	`
 
