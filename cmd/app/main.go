@@ -16,6 +16,7 @@ import (
 	"kino-notifier/internal/infrastructure/postgres/connection"
 	postgresuser "kino-notifier/internal/infrastructure/postgres/user"
 	"kino-notifier/internal/infrastructure/telegram"
+	httptransport "kino-notifier/internal/transport/http"
 )
 
 func main() {
@@ -60,10 +61,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return fmt.Errorf("инициализация Telegram-бота: %w", err)
 	}
 
-	healthHandler := httpserver.NewHealthHandler(database.Pool)
+	healthHandler := httptransport.NewHealthHandler(database.Pool)
 	listUsers := userapp.NewUserList(userRepository)
-	usersHandler := httpserver.NewUsersHandler(listUsers, logger)
-	router := httpserver.NewRouter(healthHandler, usersHandler)
+	usersHandler := httptransport.NewUsersHandler(listUsers, logger)
+	router := httptransport.NewRouter(healthHandler, usersHandler)
 
 	server, err := httpserver.New(cfg.Port, router)
 	if err != nil {
