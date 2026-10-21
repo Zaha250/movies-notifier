@@ -75,4 +75,8 @@ func (h *startHandler) handle(ctx context.Context, _ *tgbot.Bot, update *models.
 	}
 
 	h.responder.Reply(ctx, message.Chat.ID, helloMessage)
+	h.logger.Info(
+		"Инициализация бота",
+		"telegram_user_id", from.ID,
+	)
 }

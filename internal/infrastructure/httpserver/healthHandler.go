@@ -23,5 +23,9 @@ func NewHealthHandler(db DatabasePinger) http.Handler {
 		}
 
 		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte("OK"))
+		if err != nil {
+			return
+		}
 	})
 }
