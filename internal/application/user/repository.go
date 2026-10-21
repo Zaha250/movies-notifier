@@ -10,3 +10,7 @@ import (
 type UserRepository interface {
 	Upsert(ctx context.Context, user domain.User) error
 }
+
+type UserReader interface {
+	List(ctx context.Context) ([]domain.User, error)
+}

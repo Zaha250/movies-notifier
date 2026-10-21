@@ -61,7 +61,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	}
 
 	healthHandler := httpserver.NewHealthHandler(database.Pool)
-	router := httpserver.NewRouter(healthHandler)
+	listUsers := userapp.NewUserList(userRepository)
+	usersHandler := httpserver.NewUsersHandler(listUsers, logger)
+	router := httpserver.NewRouter(healthHandler, usersHandler)
 
 	server, err := httpserver.New(cfg.Port, router)
 	if err != nil {

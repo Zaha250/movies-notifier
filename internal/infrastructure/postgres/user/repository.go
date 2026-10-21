@@ -15,6 +15,7 @@ type Repository struct {
 }
 
 var _ userapp.UserRepository = (*Repository)(nil)
+var _ userapp.UserReader = (*Repository)(nil)
 
 func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
@@ -69,4 +70,56 @@ func (r *Repository) Upsert(ctx context.Context, user domain.User) error {
 		return fmt.Errorf("upsert пользователя в PostgreSQL: %w", err)
 	}
 	return nil
+}
+
+func (r *Repository) List(ctx context.Context) ([]domain.User, error) {
+	const query = `
+		SELECT
+			id,
+			telegram_user_id,
+			telegram_chat_id,
+			username,
+			first_name,
+			last_name,
+			language_code,
+			is_bot,
+			is_active,
+			last_interaction_at,
+			created_at,
+			updated_at
+		FROM users
+		ORDER BY created_at DESC, id DESC
+	`
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("получение списка пользователей PostgreSQL: %w", err)
+	}
+	defer rows.Close()
+
+	users := make([]domain.User, 0)
+	for rows.Next() {
+		var user domain.User
+		if err := rows.Scan(
+			&user.ID,
+			&user.TelegramUserID,
+			&user.TelegramChatID,
+			&user.Username,
+			&user.FirstName,
+			&user.LastName,
+			&user.LanguageCode,
+			&user.IsBot,
+			&user.IsActive,
+			&user.LastInteractionAt,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("преобразование пользователя из PostgreSQL: %w", err)
+		}
+		users = append(users, user)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("чтение списка пользователей из PostgreSQL: %w", err)
+	}
+
+	return users, nil
 }
